@@ -1,5 +1,5 @@
 <index.html>
-<!-- saved from url=(0058)file:///C:/Users/FisherFarmsInc/Downloads/index%20(1).html -->
+<!-- saved from url=(0058)file:///C:/Users/FisherFarmsInc/Downloads/index%20(2).html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -870,8 +870,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-hei
   <!-- TradingView live widgets (work on https://) -->
   <div class="card" style="margin-bottom:16px;">
     <div class="card-hdr"><span class="card-title">Live Ticker Tape</span><span class="section-badge">REAL-TIME ON HTTPS</span></div>
-    <div class="tradingview-widget-container" style="width: 100%; height: 72px;">
-      <iframe scrolling="no" allowtransparency="true" frameborder="0" src="./EquityIQ — Live Dashboard_files/saved_resource.html" title="ticker tape TradingView widget" lang="en" style="user-select: none; box-sizing: border-box; display: block; height: 72px; width: 100%;"></iframe>
+    <div class="tradingview-widget-container" style="width: 100%; height: 44px;">
+      <iframe scrolling="no" allowtransparency="true" frameborder="0" src="./EquityIQ — Live Dashboard_files/saved_resource.html" title="ticker tape TradingView widget" lang="en" style="user-select: none; box-sizing: border-box; display: block; height: 100%; width: 100%;"></iframe>
       
     <style>
 	.tradingview-widget-copyright {
@@ -1216,164 +1216,9 @@ window.calcDCF = function() {
 };
 
 /* ── Data Engine (after DOM ready) ──────────────────────────────── */
-window.addEventListener('DOMContentLoaded', function() {
-  window.EQ = {
-    apiKey: '', cache: {},
-    holdings: [
-      {ticker:'AAPL', name:'Apple',     shares:50,  avgCost:155.00, fv:210},
-      {ticker:'MSFT', name:'Microsoft', shares:30,  avgCost:280.00, fv:420},
-      {ticker:'GOOGL',name:'Alphabet',  shares:20,  avgCost:135.00, fv:195},
-      {ticker:'AMZN', name:'Amazon',    shares:15,  avgCost:178.00, fv:215},
-      {ticker:'JPM',  name:'JPMorgan',  shares:40,  avgCost:148.00, fv:210},
-      {ticker:'JNJ',  name:'J&J',       shares:60,  avgCost:155.00, fv:175},
-      {ticker:'VZ',   name:'Verizon',   shares:100, avgCost:38.00,  fv:50 },
-      {ticker:'XOM',  name:'Exxon',     shares:25,  avgCost:105.00, fv:130},
-      {ticker:'PG',   name:'P&G',       shares:45,  avgCost:138.00, fv:160},
-      {ticker:'BRK-B',name:'Berkshire', shares:10,  avgCost:310.00, fv:410}
-    ],
-    watchlist: ['NVDA','TSLA','LLY','AMD'],
 
-    /* XHR fetch — works when hosted on https:// (Netlify, any web server) */
-    fetchXHR: function(ticker, key, cb) {
-      var self = this;
-      var sym  = ticker === 'BRK-B' ? 'BRK.B' : ticker;
-      var url  = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + encodeURIComponent(key);
-      var xhr  = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.timeout = 10000;
-      xhr.onload = function() {
-        try {
-          if (xhr.status === 200) {
-            var d = JSON.parse(xhr.responseText);
-            if (d && typeof d.c === 'number' && d.c > 0) {
-              self.cache[ticker] = { price:d.c, chg:d.d||0, pct:d.dp||0, time:Date.now() };
-              cb(true); return;
-            }
-          }
-          cb(false);
-        } catch(e) { cb(false); }
-      };
-      xhr.onerror   = function() { cb(false); };
-      xhr.ontimeout = function() { cb(false); };
-      xhr.send();
-    },
-
-    fetchAll: function(key, onEach) {
-      var self  = this;
-      var all   = this.holdings.map(function(h){ return h.ticker; }).concat(this.watchlist);
-      var total = all.length, loaded = 0;
-      function next(i) {
-        if (i >= total) return;
-        self.fetchXHR(all[i], key, function() {
-          loaded++;
-          if (onEach) onEach(loaded, total);
-          if (loaded < total) setTimeout(function(){ next(i+1); }, 300);
-        });
-      }
-      next(0);
-    },
-
-    setProgress: function(pct, txt) {
-      var b=document.getElementById('progressBar'), t=document.getElementById('progressText'), n=document.getElementById('progressPct');
-      if(b)b.style.width=pct+'%'; if(t)t.textContent=txt||''; if(n)n.textContent=Math.round(pct)+'%';
-    },
-    setStatus: function(s) {
-      var e=document.getElementById('apiStatus'); if(!e)return;
-      if(s==='ok'){e.className='api-status api-ok';e.textContent='LIVE';}
-      else if(s==='err'){e.className='api-status api-err';e.textContent='ERR';}
-      else{e.className='api-status api-load';e.textContent='...';}
-    },
-    saveCache: function() { try{localStorage.setItem('equityiq_prices',JSON.stringify(this.cache));}catch(e){} },
-    renderAll: function() {
-      this.renderPortfolio(); this.renderWatchlist();
-      this.renderRec(); this.renderRisk(); this.renderTech();
-      if (Object.keys(this.cache).length > 0) this.setStatus('ok');
-    },
-
-    renderPortfolio: function() {
-      var tbody=document.getElementById('us-holdings-body'); if(!tbody)return;
-      var tV=0,tC=0,mv=[],rows='';
-      this.holdings.forEach(function(h){
-        var d=EQ.cache[h.ticker], pr=d?d.price:null, pct=d?d.pct:null;
-        var val=pr?pr*h.shares:h.avgCost*h.shares, cost=h.avgCost*h.shares;
-        var pnl=val-cost, pp=(pnl/cost)*100; tV+=val; tC+=cost;
-        if(pr&&pct!==null) mv.push({t:h.ticker,p:pct});
-        var prS=pr?'$'+pr.toFixed(2):'$'+h.avgCost.toFixed(2)+'*';
-        var pctS=pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'%':'--';
-        var cc=pct!==null?(pct>=0?'#10b981':'#ef4444'):'#9ca3af';
-        var pc=pnl>=0?'#10b981':'#ef4444';
-        var sig=pp>10?'<span class="tag tag-buy">UP</span>':pp<-15?'<span class="tag tag-sell">DOWN</span>':'<span class="tag tag-hold">~</span>';
-        rows+='<tr><td class="ticker">'+h.ticker+'</td><td style="color:#9ca3af">'+h.name+'</td><td class="r mono">'+h.shares+'</td><td class="r mono">$'+h.avgCost.toFixed(2)+'</td><td class="r mono" style="color:'+cc+'">'+prS+'</td><td class="r mono" style="color:'+cc+'">'+pctS+'</td><td class="r mono">$'+val.toFixed(0)+'</td><td class="r mono" style="color:'+pc+'">'+(pnl>=0?'+$':'-$')+Math.abs(pnl).toFixed(0)+'</td><td class="r mono" style="color:'+pc+'">'+(pp>=0?'+':'')+pp.toFixed(1)+'%</td><td>'+sig+'</td></tr>';
-      });
-      tbody.innerHTML=rows||'<tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280">Prices loading...</td></tr>';
-      var tPnl=tV-tC, pPct=(tPnl/tC)*100;
-      function f3(n){return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
-      function se(id,v,c){var e=document.getElementById(id);if(e){e.textContent=v;if(c)e.style.color=c;}}
-      se('kpi-us-val','$'+f3(tV),'#3b82f6');
-      se('kpi-us-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
-      se('kpi-us-ytd',(pPct>=0?'+':'')+pPct.toFixed(1)+'% YTD');
-      se('total-us-value','$'+f3(tV),'#3b82f6');
-      se('total-us-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
-      se('unrealized-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
-      se('us-data-age',Object.keys(EQ.cache).length>0?'LIVE':'STATIC');
-      mv.sort(function(a,b){return b.p-a.p;});
-      var sh=mv.slice(0,3).concat(mv.slice(-2));
-      var mh='<div class="bar-wrap">';
-      sh.forEach(function(m){var col=m.p>=0?'#10b981':'#ef4444',w=Math.min(Math.abs(m.p)*8,100);mh+='<div class="bar-row"><div class="bar-lbl">'+m.t+'</div><div class="bar-outer"><div class="bar-inner" style="width:'+w+'%;background:'+col+'"></div></div><div class="bar-val" style="color:'+col+'">'+(m.p>=0?'+':'')+m.p.toFixed(2)+'%</div></div>';});
-      mh+='</div>';
-      var lb=document.getElementById('live-movers-bars'); if(lb&&mv.length>0)lb.innerHTML=mh;
-    },
-    renderWatchlist:function(){var tgt={NVDA:700,TSLA:220,LLY:750,AMD:160};this.watchlist.forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById('w-'+t),ge=document.getElementById('wg-'+t);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&ge&&tgt[t]){var g=((tgt[t]-d.price)/d.price*100).toFixed(1);ge.textContent=(g>=0?'+':'')+g+'% to entry';ge.style.color=g<=0?'#10b981':'#f59e0b';}});},
-    renderRec:function(){var fv={AAPL:210,MSFT:420,GOOGL:195,AMZN:215,JPM:210,JNJ:175,XOM:130};Object.keys(fv).forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById('rec-'+t),ue=document.getElementById('up-'+t);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&ue){var u=((fv[t]-d.price)/d.price*100).toFixed(1);ue.textContent=(u>=0?'+':'')+u+'%';ue.style.color=u>=0?'#10b981':'#ef4444';}});},
-    renderRisk:function(){['AAPL','MSFT','AMZN','JNJ','VZ'].forEach(function(t){var d=EQ.cache[t],e=document.getElementById('risk-'+t);if(d&&e){e.textContent='$'+d.price.toFixed(2);e.style.color=d.pct>=0?'#10b981':'#ef4444';}});},
-    renderTech:function(){var ma50={AAPL:180.20,MSFT:355.00,GOOGL:162.50,AMZN:178.00,JPM:182.00,JNJ:158.00,VZ:44.20,XOM:112.00,PG:149.00,'BRK-B':362.00};var tid={AAPL:'tech-AAPL',MSFT:'tech-MSFT',GOOGL:'tech-GOOGL',AMZN:'tech-AMZN',JPM:'tech-JPM',JNJ:'tech-JNJ',VZ:'tech-VZ',XOM:'tech-XOM',PG:'tech-PG','BRK-B':'tech-BRKB'};var pid={AAPL:'pma50-AAPL',MSFT:'pma50-MSFT',GOOGL:'pma50-GOOGL',AMZN:'pma50-AMZN',JPM:'pma50-JPM',JNJ:'pma50-JNJ',VZ:'pma50-VZ',XOM:'pma50-XOM',PG:'pma50-PG','BRK-B':'pma50-BRKB'};Object.keys(tid).forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById(tid[t]),me=document.getElementById(pid[t]);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&me&&ma50[t]){var r=d.price/ma50[t];me.textContent=r.toFixed(3)+'x';me.style.color=r>=1?'#10b981':'#ef4444';}});var ae=document.getElementById('tech-age');if(ae&&Object.keys(EQ.cache).length>0)ae.textContent='LIVE';}
-  };
-
-  /* Clock */
-  function tick(){var e=document.getElementById('clock');if(e)e.textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
-  tick(); setInterval(tick,1000);
-
-  /* Market status */
-  function mkt(){var et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));var d=et.getDay(),m=et.getHours()*60+et.getMinutes(),o=d>=1&&d<=5&&m>=570&&m<960;var p=document.getElementById('marketStatus'),l=document.getElementById('marketLabel');if(p&&l){p.className=o?'market-pill market-open':'market-pill market-closed';l.textContent=o?'MARKET OPEN':(d===0||d===6?'WEEKEND':'CLOSED');}}
-  mkt(); setInterval(mkt,60000);
-
-  /* Init pages */
-  document.querySelectorAll('.page').forEach(function(p){p.style.display='none';p.classList.remove('active');});
-  var home=document.getElementById('page-portfolio');
-  if(home){home.style.display='block';home.classList.add('active');}
-  var ft=document.querySelector('.nav-tab'); if(ft) ft.classList.add('active');
-
-  /* Load cache + render */
-  try{var raw=localStorage.getItem('equityiq_prices');if(raw)EQ.cache=JSON.parse(raw);}catch(e){}
-  EQ.renderPortfolio();
-
-  /* ── Auto-connect with embedded key ── */
-  var HARDCODED_KEY = 'd8iojchr01qmfrvi6880';
-  var sk = '';
-  try { sk = localStorage.getItem('equityiq_apikey') || ''; } catch(e) {}
-  if (!sk) sk = HARDCODED_KEY;
-  EQ.apiKey = sk;
-  try { localStorage.setItem('equityiq_apikey', sk); } catch(e) {}
-
-  /* Always hide setup overlay — key is pre-loaded */
-  var ov = document.getElementById('setupOverlay');
-  if (ov) ov.style.display = 'none';
-
-  if (window.location.protocol === 'file:') {
-    EQ.setStatus('err');
-  } else {
-    /* On https:// — connect immediately */
-    EQ.setStatus('loading');
-    setTimeout(function() { window.refreshAllPrices(); }, 300);
-  }
-
-  /* Auto-refresh every 60s */
-  setInterval(function() {
-    if (EQ.apiKey && window.location.protocol !== 'file:') window.refreshAllPrices();
-  }, 60000);
-
-
-  // ── PSE Holdings Editor ──────────────────────────────
+// ── PSE + US Editor functions (must be on window before DOM) ──
+// ── PSE Holdings Editor ──────────────────────────────
   var PSE_HOLDINGS_KEY = 'equityiq_pse_holdings';
 
   // Default PSE holdings
@@ -1514,8 +1359,7 @@ window.addEventListener('DOMContentLoaded', function() {
   // Load PSE on startup
   renderPSETable(loadPSEHoldings());
 
-
-  // ── US Holdings Editor ───────────────────────────────
+// ── US Holdings Editor ───────────────────────────────
   var US_HOLDINGS_KEY = 'equityiq_us_holdings';
 
   var defaultUS = [
@@ -1634,6 +1478,167 @@ window.addEventListener('DOMContentLoaded', function() {
   // On startup: load saved US holdings into EQ
   var savedUS = loadUSHoldings();
   if (window.EQ) EQ.holdings = savedUS;
+
+window.addEventListener('DOMContentLoaded', function() {
+  window.EQ = {
+    apiKey: '', cache: {},
+    holdings: [
+      {ticker:'AAPL', name:'Apple',     shares:50,  avgCost:155.00, fv:210},
+      {ticker:'MSFT', name:'Microsoft', shares:30,  avgCost:280.00, fv:420},
+      {ticker:'GOOGL',name:'Alphabet',  shares:20,  avgCost:135.00, fv:195},
+      {ticker:'AMZN', name:'Amazon',    shares:15,  avgCost:178.00, fv:215},
+      {ticker:'JPM',  name:'JPMorgan',  shares:40,  avgCost:148.00, fv:210},
+      {ticker:'JNJ',  name:'J&J',       shares:60,  avgCost:155.00, fv:175},
+      {ticker:'VZ',   name:'Verizon',   shares:100, avgCost:38.00,  fv:50 },
+      {ticker:'XOM',  name:'Exxon',     shares:25,  avgCost:105.00, fv:130},
+      {ticker:'PG',   name:'P&G',       shares:45,  avgCost:138.00, fv:160},
+      {ticker:'BRK-B',name:'Berkshire', shares:10,  avgCost:310.00, fv:410}
+    ],
+    watchlist: ['NVDA','TSLA','LLY','AMD'],
+
+    /* XHR fetch — works when hosted on https:// (Netlify, any web server) */
+    fetchXHR: function(ticker, key, cb) {
+      var self = this;
+      var sym  = ticker === 'BRK-B' ? 'BRK.B' : ticker;
+      var url  = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + encodeURIComponent(key);
+      var xhr  = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.timeout = 10000;
+      xhr.onload = function() {
+        try {
+          if (xhr.status === 200) {
+            var d = JSON.parse(xhr.responseText);
+            if (d && typeof d.c === 'number' && d.c > 0) {
+              self.cache[ticker] = { price:d.c, chg:d.d||0, pct:d.dp||0, time:Date.now() };
+              cb(true); return;
+            }
+          }
+          cb(false);
+        } catch(e) { cb(false); }
+      };
+      xhr.onerror   = function() { cb(false); };
+      xhr.ontimeout = function() { cb(false); };
+      xhr.send();
+    },
+
+    fetchAll: function(key, onEach) {
+      var self  = this;
+      var all   = this.holdings.map(function(h){ return h.ticker; }).concat(this.watchlist);
+      var total = all.length, loaded = 0;
+      function next(i) {
+        if (i >= total) return;
+        self.fetchXHR(all[i], key, function() {
+          loaded++;
+          if (onEach) onEach(loaded, total);
+          if (loaded < total) setTimeout(function(){ next(i+1); }, 300);
+        });
+      }
+      next(0);
+    },
+
+    setProgress: function(pct, txt) {
+      var b=document.getElementById('progressBar'), t=document.getElementById('progressText'), n=document.getElementById('progressPct');
+      if(b)b.style.width=pct+'%'; if(t)t.textContent=txt||''; if(n)n.textContent=Math.round(pct)+'%';
+    },
+    setStatus: function(s) {
+      var e=document.getElementById('apiStatus'); if(!e)return;
+      if(s==='ok'){e.className='api-status api-ok';e.textContent='LIVE';}
+      else if(s==='err'){e.className='api-status api-err';e.textContent='ERR';}
+      else{e.className='api-status api-load';e.textContent='...';}
+    },
+    saveCache: function() { try{localStorage.setItem('equityiq_prices',JSON.stringify(this.cache));}catch(e){} },
+    renderAll: function() {
+      this.renderPortfolio(); this.renderWatchlist();
+      this.renderRec(); this.renderRisk(); this.renderTech();
+      if (Object.keys(this.cache).length > 0) this.setStatus('ok');
+    },
+
+    renderPortfolio: function() {
+      var tbody=document.getElementById('us-holdings-body'); if(!tbody)return;
+      var tV=0,tC=0,mv=[],rows='';
+      this.holdings.forEach(function(h){
+        var d=EQ.cache[h.ticker], pr=d?d.price:null, pct=d?d.pct:null;
+        var val=pr?pr*h.shares:h.avgCost*h.shares, cost=h.avgCost*h.shares;
+        var pnl=val-cost, pp=(pnl/cost)*100; tV+=val; tC+=cost;
+        if(pr&&pct!==null) mv.push({t:h.ticker,p:pct});
+        var prS=pr?'$'+pr.toFixed(2):'$'+h.avgCost.toFixed(2)+'*';
+        var pctS=pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'%':'--';
+        var cc=pct!==null?(pct>=0?'#10b981':'#ef4444'):'#9ca3af';
+        var pc=pnl>=0?'#10b981':'#ef4444';
+        var sig=pp>10?'<span class="tag tag-buy">UP</span>':pp<-15?'<span class="tag tag-sell">DOWN</span>':'<span class="tag tag-hold">~</span>';
+        rows+='<tr><td class="ticker">'+h.ticker+'</td><td style="color:#9ca3af">'+h.name+'</td><td class="r mono">'+h.shares+'</td><td class="r mono">$'+h.avgCost.toFixed(2)+'</td><td class="r mono" style="color:'+cc+'">'+prS+'</td><td class="r mono" style="color:'+cc+'">'+pctS+'</td><td class="r mono">$'+val.toFixed(0)+'</td><td class="r mono" style="color:'+pc+'">'+(pnl>=0?'+$':'-$')+Math.abs(pnl).toFixed(0)+'</td><td class="r mono" style="color:'+pc+'">'+(pp>=0?'+':'')+pp.toFixed(1)+'%</td><td>'+sig+'</td></tr>';
+      });
+      tbody.innerHTML=rows||'<tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280">Prices loading...</td></tr>';
+      var tPnl=tV-tC, pPct=(tPnl/tC)*100;
+      function f3(n){return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+      function se(id,v,c){var e=document.getElementById(id);if(e){e.textContent=v;if(c)e.style.color=c;}}
+      se('kpi-us-val','$'+f3(tV),'#3b82f6');
+      se('kpi-us-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
+      se('kpi-us-ytd',(pPct>=0?'+':'')+pPct.toFixed(1)+'% YTD');
+      se('total-us-value','$'+f3(tV),'#3b82f6');
+      se('total-us-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
+      se('unrealized-pnl',(tPnl>=0?'+$':'-$')+f3(Math.abs(tPnl)),tPnl>=0?'#10b981':'#ef4444');
+      se('us-data-age',Object.keys(EQ.cache).length>0?'LIVE':'STATIC');
+      mv.sort(function(a,b){return b.p-a.p;});
+      var sh=mv.slice(0,3).concat(mv.slice(-2));
+      var mh='<div class="bar-wrap">';
+      sh.forEach(function(m){var col=m.p>=0?'#10b981':'#ef4444',w=Math.min(Math.abs(m.p)*8,100);mh+='<div class="bar-row"><div class="bar-lbl">'+m.t+'</div><div class="bar-outer"><div class="bar-inner" style="width:'+w+'%;background:'+col+'"></div></div><div class="bar-val" style="color:'+col+'">'+(m.p>=0?'+':'')+m.p.toFixed(2)+'%</div></div>';});
+      mh+='</div>';
+      var lb=document.getElementById('live-movers-bars'); if(lb&&mv.length>0)lb.innerHTML=mh;
+    },
+    renderWatchlist:function(){var tgt={NVDA:700,TSLA:220,LLY:750,AMD:160};this.watchlist.forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById('w-'+t),ge=document.getElementById('wg-'+t);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&ge&&tgt[t]){var g=((tgt[t]-d.price)/d.price*100).toFixed(1);ge.textContent=(g>=0?'+':'')+g+'% to entry';ge.style.color=g<=0?'#10b981':'#f59e0b';}});},
+    renderRec:function(){var fv={AAPL:210,MSFT:420,GOOGL:195,AMZN:215,JPM:210,JNJ:175,XOM:130};Object.keys(fv).forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById('rec-'+t),ue=document.getElementById('up-'+t);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&ue){var u=((fv[t]-d.price)/d.price*100).toFixed(1);ue.textContent=(u>=0?'+':'')+u+'%';ue.style.color=u>=0?'#10b981':'#ef4444';}});},
+    renderRisk:function(){['AAPL','MSFT','AMZN','JNJ','VZ'].forEach(function(t){var d=EQ.cache[t],e=document.getElementById('risk-'+t);if(d&&e){e.textContent='$'+d.price.toFixed(2);e.style.color=d.pct>=0?'#10b981':'#ef4444';}});},
+    renderTech:function(){var ma50={AAPL:180.20,MSFT:355.00,GOOGL:162.50,AMZN:178.00,JPM:182.00,JNJ:158.00,VZ:44.20,XOM:112.00,PG:149.00,'BRK-B':362.00};var tid={AAPL:'tech-AAPL',MSFT:'tech-MSFT',GOOGL:'tech-GOOGL',AMZN:'tech-AMZN',JPM:'tech-JPM',JNJ:'tech-JNJ',VZ:'tech-VZ',XOM:'tech-XOM',PG:'tech-PG','BRK-B':'tech-BRKB'};var pid={AAPL:'pma50-AAPL',MSFT:'pma50-MSFT',GOOGL:'pma50-GOOGL',AMZN:'pma50-AMZN',JPM:'pma50-JPM',JNJ:'pma50-JNJ',VZ:'pma50-VZ',XOM:'pma50-XOM',PG:'pma50-PG','BRK-B':'pma50-BRKB'};Object.keys(tid).forEach(function(t){var d=EQ.cache[t];var pe=document.getElementById(tid[t]),me=document.getElementById(pid[t]);if(d&&pe){pe.textContent='$'+d.price.toFixed(2);pe.style.color=d.pct>=0?'#10b981':'#ef4444';}if(d&&me&&ma50[t]){var r=d.price/ma50[t];me.textContent=r.toFixed(3)+'x';me.style.color=r>=1?'#10b981':'#ef4444';}});var ae=document.getElementById('tech-age');if(ae&&Object.keys(EQ.cache).length>0)ae.textContent='LIVE';}
+  };
+
+  /* Clock */
+  function tick(){var e=document.getElementById('clock');if(e)e.textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+  tick(); setInterval(tick,1000);
+
+  /* Market status */
+  function mkt(){var et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));var d=et.getDay(),m=et.getHours()*60+et.getMinutes(),o=d>=1&&d<=5&&m>=570&&m<960;var p=document.getElementById('marketStatus'),l=document.getElementById('marketLabel');if(p&&l){p.className=o?'market-pill market-open':'market-pill market-closed';l.textContent=o?'MARKET OPEN':(d===0||d===6?'WEEKEND':'CLOSED');}}
+  mkt(); setInterval(mkt,60000);
+
+  /* Init pages */
+  document.querySelectorAll('.page').forEach(function(p){p.style.display='none';p.classList.remove('active');});
+  var home=document.getElementById('page-portfolio');
+  if(home){home.style.display='block';home.classList.add('active');}
+  var ft=document.querySelector('.nav-tab'); if(ft) ft.classList.add('active');
+
+  /* Load cache + render */
+  try{var raw=localStorage.getItem('equityiq_prices');if(raw)EQ.cache=JSON.parse(raw);}catch(e){}
+  EQ.renderPortfolio();
+
+  /* ── Auto-connect with embedded key ── */
+  // Force set the key in the input field too
+  var keyInp = document.getElementById('keyInput');
+  if (keyInp) keyInp.value = 'd8iojchr01qmfrvi6880';
+  var HARDCODED_KEY = 'd8iojchr01qmfrvi6880';
+  var sk = '';
+  try { sk = localStorage.getItem('equityiq_apikey') || ''; } catch(e) {}
+  if (!sk) sk = HARDCODED_KEY;
+  EQ.apiKey = sk;
+  try { localStorage.setItem('equityiq_apikey', sk); } catch(e) {}
+
+  /* Always hide setup overlay — key is pre-loaded */
+  var ov = document.getElementById('setupOverlay');
+  if (ov) ov.style.display = 'none';
+
+  if (window.location.protocol === 'file:') {
+    EQ.setStatus('err');
+  } else {
+    /* On https:// — connect immediately */
+    EQ.setStatus('loading');
+    setTimeout(function() { window.refreshAllPrices(); }, 300);
+  }
+
+  /* Auto-refresh every 60s */
+  setInterval(function() {
+    if (EQ.apiKey && window.location.protocol !== 'file:') window.refreshAllPrices();
+  }, 60000);
+
+
 
 }); /* end DOMContentLoaded */
 </script>
